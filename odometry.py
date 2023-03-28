@@ -1,52 +1,72 @@
-import math
+import numpy as np
+import matplotlib.pyplot as plt
 
-class Robot:
-    def __init__(self, x=0, y=0, theta=0, wheelbase=1, ticks_per_rev=1000):
-        self.x = x
-        self.y = y
-        self.theta = theta
-        self.wheelbase = wheelbase
-        self.ticks_per_rev = ticks_per_rev
-        self.left_ticks = 0
-        self.right_ticks = 0
-        self.last_left_ticks = 0
-        self.last_right_ticks = 0
-        self.distance_per_tick = (2 * math.pi * self.wheelbase) / self.ticks_per_rev
+# Parameters
+R = 1  # radius of the wheels
+L = 2  # distance between the wheels
 
-    def set_left_ticks(self, ticks):
-        self.last_left_ticks = self.left_ticks
-        self.left_ticks = ticks
+# Initial state of the robot
+x = 0
+y = 0
+theta = np.pi/4
 
-    def set_right_ticks(self, ticks):
-        self.last_right_ticks = self.right_ticks
-        self.right_ticks = ticks
+# Target location
+xt = 5
+yt = 5
 
-    def update_pose(self):
-        delta_left_ticks = self.left_ticks - self.last_left_ticks
-        delta_right_ticks = self.right_ticks - self.last_right_ticks
-        delta_left_distance = delta_left_ticks * self.distance_per_tick
-        delta_right_distance = delta_right_ticks * self.distance_per_tick
-        delta_distance = (delta_left_distance + delta_right_distance) / 2
-        delta_theta = (delta_right_distance - delta_left_distance) / self.wheelbase
-        self.x += delta_distance * math.cos(self.theta + (delta_theta / 2))
-        self.y += delta_distance * math.sin(self.theta + (delta_theta / 2))
-        self.theta += delta_theta
+# Control inputs (angular velocities of the wheels)
+w_l = 1  # rad/s
+w_r = 2  # rad/s
 
-if __name__ == '__main__':
-    import time
-    import random
-    import matplotlib.pyplot as plt
+# Time parameters
+t0 = 0
+tf = 10
+dt = 0.1
 
-    robot = Robot()
-    x_data = [robot.x]
-    y_data = [robot.y]
+# Lists to store robot pose and path
+robot_poses = [(x,y)]
+path = [(x,y)]
 
-    for i in range(1000):
-        robot.set_left_ticks(random.randint(0, 1000))
-        robot.set_right_ticks(random.randint(0, 1000))
-        robot.update_pose()
-        x_data.append(robot.x)
-        y_data.append(robot.y)
+# Differential drive kinematics
+def differential_drive(x, y, theta, w_l, w_r):
+    v = R*(w_l + w_r)/2
+    w = R*(w_r - w_l)/L
+    x += v*np.cos(theta)*dt
+    y += v*np.sin(theta)*dt
+    theta += w*dt
+    return x, y, theta
 
-    plt.plot(x_data, y_data)
-    plt.show()
+# Inverse kinematics
+def inverse_kinematics(x, y, theta, xt, yt):
+    dx = xt - x
+    dy = yt - y
+    rho = np.sqrt(dx**2 + dy**2)
+    alpha = -theta + np.arctan2(dy, dx)
+    beta = -theta - alpha
+    w_l = (rho - L/2*alpha)/R
+    w_r = (rho + L/2*alpha)/R
+    return w_l, w_r
+
+# Simulation loop
+t = t0
+while t < tf:
+    w_l, w_r = inverse_kinematics(x, y, theta, xt, yt)
+    x, y, theta = differential_drive(x, y, theta, w_l, w_r)
+    t += dt
+    robot_poses.append((x, y))
+    path.append((xt, yt))
+
+# Convert to numpy arrays for plotting
+robot_poses = np.array(robot_poses)
+path = np.array(path)
+
+# Plotting
+plt.figure(figsize=(8, 8))
+plt.plot(robot_poses[:, 0], robot_poses[:, 1], label='Robot path')
+plt.plot(path[:, 0], path[:, 1], 'rx', label='Target')
+plt.plot(0, 0, 'bo', label='Initial position')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.axis('equal')
+plt.legend()
+plt.show()
