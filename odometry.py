@@ -11,8 +11,8 @@ y = 0
 theta = np.pi/4
 
 # Target location
-xt = 5
-yt = 5
+xt = 2
+yt = 4
 
 # Control inputs (angular velocities of the wheels)
 w_l = 1  # rad/s
@@ -53,6 +53,8 @@ while t < tf:
     w_l, w_r = inverse_kinematics(x, y, theta, xt, yt)
     x, y, theta = differential_drive(x, y, theta, w_l, w_r)
     t += dt
+    if np.sqrt((x - xt)**2 + (y - yt)**2) < 0.05:
+        break
     robot_poses.append((x, y))
     path.append((xt, yt))
 
@@ -62,6 +64,7 @@ path = np.array(path)
 
 # Plotting
 plt.figure(figsize=(8, 8))
+plt.title('2D Differential Drive Kinematics')
 plt.plot(robot_poses[:, 0], robot_poses[:, 1], label='Robot path')
 plt.plot(path[:, 0], path[:, 1], 'rx', label='Target')
 plt.plot(0, 0, 'bo', label='Initial position')
